@@ -5,6 +5,10 @@ interface FormProps {
     hasError: boolean;
 }
 
+export const Logo = styled.div`
+
+`;
+
 export const Title = styled.h1`
     font-size: 46px;
     color: #3a3a3a;
