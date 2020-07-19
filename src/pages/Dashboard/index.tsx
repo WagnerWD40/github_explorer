@@ -1,51 +1,110 @@
-import React from 'react';
+import React, { useState, useRef, useEffect, FormEvent } from 'react';
 import { FiChevronRight } from 'react-icons/fi';
+import api from '../../services/api';
+
+import useInputState from '../../hooks/useInputState';
 
 import {
     Title,
     Form,
+    ErrorMessage,
     Repositories,
 } from './styles';
 
+interface Repository {
+    full_name: string;
+    description: string;
+    owner: {
+        login: string;
+        avatar_url: string;
+    }
+}
+
 const Dashboard: React.FC = () => {
+    const [newRepo, changeNewRepo, resetNewRepo] = useInputState('');
+    const [inputError, setInputError] = useState('');
+
+    const [repositories, setRepositories] = useState<Repository[]>(() => {
+        const storagedRepositories = localStorage.getItem('@GithubExplorer:repositories');
+
+        if (storagedRepositories) {
+            return JSON.parse(storagedRepositories);
+        }
+
+        return [];
+    });
+
+    const inputRef = useRef(null);
+
+    useEffect(() => {
+        inputRef.current.focus();
+    }, []);
+
+    useEffect(() => {
+        localStorage.setItem(
+            '@GithubExplorer:repositories',
+            JSON.stringify(repositories),
+        );
+    }, [repositories]);
+
+    async function handleAddRepository(
+        event: FormEvent<HTMLFontElement>
+        ): Promise<void> {
+
+        event.preventDefault();
+
+        if (!newRepo) {
+            setInputError('Digite no formato autor/nome do repositório');
+            return; 
+        };
+        
+        try {
+            const response = await api.get<Repository>(`repos/${newRepo}`);
+
+            const repository = response.data;
+    
+            setRepositories([...repositories, repository]);
+            setInputError('');
+        } catch {
+            setInputError('Erro na busca do repositório')    
+        } finally {
+            resetNewRepo();
+        }
+
+    }
+    
     return (
         <>
-        <Title>Explore repositórios no Github</Title>
+            <Title>Explore repositórios no Github</Title>
 
-        <Form action="">
-            <input type="text" placeholder="Digite o nome do repositório"/>
-            <button type="submit">Pesquisar</button>
-        </Form>
+            <Form onSubmit={handleAddRepository} hasError={!!inputError}>
+                <input
+                ref={inputRef}
+                value={newRepo}
+                onChange={changeNewRepo}
+                    type="text"
+                    placeholder="Digite o nome do repositório"/>
+                <button type="submit">Pesquisar</button>
+            </Form>
 
-        <Repositories>
-            <a href="teste">
-                <img src="https://cdn4.iconfinder.com/data/icons/avatars-xmas-giveaway/128/girl_avatar_child_kid-512.png" alt="avatar"/>
-                <div>
-                    <strong>rocketseat/unform</strong>
-                    <p>Easy peasy ashuduhasuhasd bla bla bla kkk cucucuuc</p>
-                </div>
+            { inputError && <ErrorMessage>{inputError}</ErrorMessage>}
 
-                <FiChevronRight size={20} />
-            </a>
-            <a href="teste">
-                <img src="https://cdn4.iconfinder.com/data/icons/avatars-xmas-giveaway/128/girl_avatar_child_kid-512.png" alt="avatar"/>
-                <div>
-                    <strong>rocketseat/unform</strong>
-                    <p>Easy peasy ashuduhasuhasd bla bla bla kkk cucucuuc</p>
-                </div>
+            <Repositories>
+            {
+                repositories.map(repository => (
+                <a key={repository.full_name} href="teste">
+                    <img src={repository.owner.avatar_url} alt={repository.owner.login}/>
+                    <div>
+                        <strong>{repository.full_name}</strong>
+                        <p>{repository.description}</p>
+                    </div>
 
-                <FiChevronRight size={20} />
-            </a>
-            <a href="teste">
-                <img src="https://cdn4.iconfinder.com/data/icons/avatars-xmas-giveaway/128/girl_avatar_child_kid-512.png" alt="avatar"/>
-                <div>
-                    <strong>rocketseat/unform</strong>
-                    <p>Easy peasy ashuduhasuhasd bla bla bla kkk cucucuuc</p>
-                </div>
+                    <FiChevronRight size={20} />
+                </a>
+                ))
+            }
 
-                <FiChevronRight size={20} />
-            </a>
-        </Repositories>
+            </Repositories>
         </>
     );
 }
